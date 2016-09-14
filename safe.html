@@ -608,6 +608,111 @@ before_action :authenticate_user!
 #你应该一步一步的预防识别和泄露账户攻击
 #不要使用默认的或硬编码凭证
 
+<h2>保护用户Session</h2>
+由于HTTP在用户访问过程中的无状态机制. 一般情况是使用Session管理未登录用户和认证用户状态.之前说过,session管理可以用在管理用户和服务中.
+
+Session是对攻击者来说是很有吸引力的.如果一个攻击者破坏了session管理从而劫持了认证session,就可以有效地攻破真个认证体系.更坏的是,经常可以看到session管理的实现存在很大的风险,那么我们应该怎么做呢?
+
+认证最好使用已经存在并且成熟的类库,然后调整到你需要的模式.使用已经存在的类库的好处是你可以专心在你需要什么,我们会分两部分讨论一下session管理的常见问题: session识别码生成, 和session生命周期.
+
+<h3>生成安全Session识别码</h3>
+一般来说Session会生成识别码并存储在Cookie中作为后续访问使用. 这些识别码的安全依靠不可预期性,唯一性和保密性.如果一个攻击者可以获取session识别码然后通过猜测或观察,他们就可以劫持这个用户的session.
+
+经常可以看到一些安全识别码的实现方式可被预测造成很容易被破解.举个例子,我们可以看到这样的cookie:
+Set-Cookie: sessionId=NzU4NjUtMTQ2Nzg3NTIyNzA1MjkxMg
+如果一个攻击者登录多次来观察session cookie的生成序列会发生什么?
+NzU4ODQtMTQ2Nzg3NTIyOTg0NTE4Ng
+NzU4OTItMTQ2Nzg3NTIzNTQwODEzOQ
+攻击者会发现,这个sessionid是base64编码的,然后使用base64解码得到:
+75865-1467875227052912
+75884-1467875229845186
+75892-1467875235408139
+非常简单可以看出这个token是由数字序列,和毫秒两部分组成,像这样的识别码攻击者可以轻易的猜到和劫持sessions.尽管这是简单的例子,其他的生成方式也不会比这个好太多.攻击者可以使用免费的分析工具来破解复杂的token.使用可预测的输入比如时间或用户ip来生成token都是不够的.那么怎么才能更安全的生成识别码?
+
+减低攻击者猜测token最有效的方式请参见<a href="https://www.owasp.org/index.php/Session_Management_Cheat_Sheet">OWASP's Session管理小结</a>推荐使用最小128bit(16 bytes)的随机生成的session识别码.几个例子java和ruby都支持SecureRandom来生成随机数.
+
+很多session管理为了减少数据库开销,将用户信息直接放入cookie中而不是只存放识别码在服务端进行查询.如果不使用非常严格的加密算法来确保数据的保密性,完整性,真实性,这会导致很多问题.
+
+是否应当存储用户信息到cookie中应该慎重考虑,不应该轻易决策.原则是,除非绝对需要不要轻易把信息放入cookie.即使加密也永远不要存储个人机密身份识别码信息.如果信息中包含用户名或角色和特权级别,你必须防止攻击者篡改数据绕过认证或劫持其他用户账户的风险.如果你选择存储在cookie中存储这种类型的信息,寻找一个存在的并且经过专家审查的类库来处理他.
+
+<h3>不要暴露session识别码</h3>
+使用HTTPS可以帮助预防网络中窃取session识别码,但是仍然存在其他的泄露风险.一个经典的例子是,一个航空公司用户发送自己的链接给一个朋友,这个链接中包含了用户session识别码信息,那么他的朋友这时可以使用这个链接订机票.
+
+不用说就知道,暴露session识别码在URL中有风险,就像上面的例子,暴露在Referer header中当点击一个外链,或登录网站的日志. Cookie是一个很好的选择因为它不存在这类风险.session识别码经常在HTTP header中发送或在POST body中,无所谓你选择哪种,确保session识别码不要暴露在URL中,日志中,referer header中或其他容易被攻击的地方.
+
+<h3>保护你的Cookies</h3>
+当cookies中保存session信息时,我们应该简单的预防泄露.这里有四个重要属性来预防: Domain, Path, HttpOnly 和Secure.
+Domain用来限制cookie发送的区域,Path可以限制一个区域的路径和子路径. 默认情况下Domain设置允许发送到原始域和子域,默认的Path会限制cookie可以被发送到的路径和子路径.
+
+不设定Domain限制会带来风险, 想象如果我们设定Domain到xxx.com 当访问payment.xxx.com来付款. 由于cookie会被发送到xxx.com和他所有的子域. 如果我们并不能控制每个子域或每个子域并不一定都使用https,应该确保cookie可以被发送到任何子域.因为这可能会帮助攻击者获取cookie,比如一个用户访问evil.xxx.com?
+Path 属性也应该设定限定.如果登陆后,session识别码只需要在访问/secret/携带,那么设定Path为secret是非常好的.
+
+其他两个属性,Secure和HttpOnly,控制cookie的使用. Secure代表浏览器只会在HTTPS下发送cookie, HTTPOnly代表cookie不允许通过javascript或其他客户端脚本访问.
+
+这些属性全部设置后,我们的cookie会变成这样:
+Set-Cookie: sessionId=[top secret value]; path=/secret/; secure; HttpOnly;
+  domain=payments.xxx.com
+
+这样设置后在网络传输中我们的cookie只允许在http://payment.xxx.com/secret中使用.大大降低被攻击的可能性.
+
+<h3>管理session生命周期</h3>
+管理session生命周期会减少泄露风险.这取决于你的需求.比如一个银行系统与猫图网站的session生命周期肯定不同.
+
+大多数情况当用户第一次请求时或第一次登录时或获取session. 不管怎么做, 如果用户改变session权限级别都会存在风险.如果一个攻击者可以设置用户的session标识值到攻击者已知的更低权限会发生什么,比如通过cookie或表单隐藏域? 如果一个攻击者可以诱骗用户登录,他们就可以控制更多的session级别.这种攻击叫做"session fixaion".我们可以通过这两件事情来预防这种把戏.第一我们应该在用户登录后或提升权限后创建一个新的session.第二,我们只允许自己创建session识别码,忽略不存在的识别码.千万不要这么做:
+// pseudocode. NEVER DO THIS
+if (!isValid(sessionId)) {
+    session = createSession(sessionId);
+}
+
+session存在的时间越长,攻击者就更有可能得到它.减少这类风险应该保证你的session表干净,我们可以在用户没有活动时加强session失效机制.失效时间决定你的风险妥协程度.一个猫图网站可以设置为一个月或更长.但是银行session失效策略应该十分钟.
+
+我们用户很有可能忘记登出.一定要保证有一个简单可用的登出机制.当用户登出后,我们应该在浏览器端销毁session cookie通过设定失效日期.比如:
+Set-Cookie: sessionId=[top secret value]; path=/secret/; secure; HttpOnly;
+  domain=payments.martinfowler.com; expires=Thu, 01 Jan 1970 00:00:00 GMT
+
+最后应该给同用户提供关闭所有有效session的方式.简单做法是关闭所有session当用户修改密码时. 如果能给用户提供一个查看有效session列表的功能可以帮助他们识别风险.
+
+<h3>验证</h3>
+在认证和session管理中有很多应该考虑的部分,如果你想确定没有犯错误,你可以看一看OWASP’s ASVS(<a href="https://www.owasp.org/index.php/Category:OWASP_Application_Security_Verification_Standard_Project">Application Security Verification Standard</a>),这是一个很有价值的资源来确保你的实现方式有没有漏洞.
+
+<h3>类库</h3>
+我们列出了一些生成session识别码和session生命周期管理的风险.幸运的是,session管理在主流的类库中都被支持,提供一些成熟的选项来使用可以规避风险.
+<table class="input-validation-approaches">
+<thead><tr><th>Framework</th><th>Approaches</th></tr></thead>
+
+<tbody>
+<tr class="even first"><td rowspan="4">Java</td><td>Tomcat</td></tr>
+
+<tr class="even"><td>Jetty</td></tr>
+
+<tr class="even"><td>Apache Shiro</td></tr>
+
+<tr class="even"><td>OACC</td></tr>
+
+<tr class="odd first"><td rowspan="1">Spring</td><td>Spring Security</td></tr>
+
+<tr class="even first"><td rowspan="2">Ruby on Rails</td><td>Ruby on Rails</td></tr>
+
+<tr class="even"><td>Devise</td></tr>
+
+<tr class="odd first"><td rowspan="2">ASP.NET</td><td>ASP.NET Core authentication</td></tr>
+
+<tr class="odd"><td>Built-in Authentication Providers</td></tr>
+
+<tr class="even first"><td rowspan="1">Play</td><td>play-silhouette</td></tr>
+
+<tr class="odd first"><td rowspan="1">Node.js</td><td>Passport framework</td></tr>
+</tbody>
+</table>
+
+<h3>小结</h3>
+#使用成熟的session类库
+#保持session识别码机密性,不要放到URL或日志中.
+#使用属性来限制保护session cookie的使用范围
+#当一个不存在或修改权限级时创建一个新的session.
+#不要使用id创建session,不要自己创建session
+#确保用户可以登出系统以及可以销毁自己的所有有效session.
+
 </pre>
 
 </section>
