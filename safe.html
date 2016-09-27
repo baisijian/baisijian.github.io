@@ -310,33 +310,15 @@ DROP TABLE Students
 在下列表格中检查你选择的数据存储的参数绑定方法
 
 <table class="db-param-functions">
-<thead><tr><th>Framework</th><th>Encoded</th><th>Dangerous</th></tr></thead>
-
-<tbody><tr><td>Raw JDBC</td><td><code>Connection.prepareStatement()</code> used with <code>setXXX()</code>
-      methods and bound parameters for all input.</td><td>Any query or update method called with string concatenation rather than
-        binding.</td></tr>
-
+<thead><tr><th style="width:23%">Framework</th><th>Encoded</th><th>Dangerous</th></tr></thead>
+<tbody><tr><td>Raw JDBC</td><td><code>Connection.prepareStatement()</code> used with <code>setXXX()</code> methods and bound parameters for all input.</td><td>Any query or update method called with string concatenation rather than binding.</td></tr>
 <tr><td>PHP / MySQLi</td><td><code>prepare()</code> used with bind_param for all input.</td><td>Any query or update method called with string concatenation rather than binding.</td></tr>
-
 <tr><td>MongoDB</td><td>Basic CRUD operations such as find(),  insert(), with BSON document field names controlled by application.</td><td>Operations, including find, when field names are allowed to be determined by untrusted data or use of Mongo operations such as "$where" that allow arbitrary JavaScript conditions.</td></tr>
-
 <tr><td>Cassandra</td><td>Session.prepare used with BoundStatement and bound parameters for all input.</td><td>Any query or update method called with string concatenation rather than binding.</td></tr>
-
 <tr><td>Hibernate / JPA</td><td>Use SQL or JPQL/OQL with bound parameters via setParameter</td><td>Any query or update method called with string concatenation rather than binding.</td></tr>
-
-<tr><td>ActiveRecord</td><td>
-        Condition functions (find_by, where) if used with hashes or bound parameters, eg:
-
-<pre>where (foo: bar)
-where ("foo = ?", bar) </pre>
-</td><td>
-        Condition functions used with string concatenation or interpolation:
-
-<pre>where("foo = '#{bar}'")
-where("foo = '" + bar + "'") </pre>
-</td></tr>
-</tbody></table>
-
+<tr><td>ActiveRecord</td><td>Condition functions (find_by, where) if used with hashes or bound parameters, eg: where (foo: bar) where ("foo = ?", bar) </td><td>Condition functions used with string concatenation or interpolation: where("foo = '#{bar}'") where("foo = '" + bar + "'")</td></tr>
+</tbody>
+</table>
 
 <h3>小结</h3>
 #避免直接使用用户输入拼接sql语句
