@@ -526,16 +526,14 @@ return hash_and_salt == bcrypt.hashpw(password, salt)
 #不要把密码长度设定太短，不要把字符区间这是太窄
 
 <h2>验证用户身份安全</h2>
-如果我们需要知道用户的身份，比如，控制谁收到了特定内容，我们需要提供一些验证的表单。如果我们想要保留用户请求登录一次的认证，我们需要提供session管理。尽管大家都知道而且有很多全功能支持的类库，有两个错误的实施在OWASP 前十名赢得前两位。
-认证和授权是不一样的概念，认证证明一个用户是真实的。比如，当你登录到你的银行，你的银行会验证确实是你而不是一个攻击者试图窃取你的钱财。认证定义一个用户是否有权执行一些操作。你的银行也许使用授权来允许你查看透支限额，但是不允许你去改变他。session管理捆绑认证和授权在一起。session管理使得一个特定用户发送相关特定的请求。没有session管理，用户在每次给服务器发送请求时就失去的授权。这三点，授权，认证，session管理- 适应于用户和服务。保持这三点在我们系统中分离可以减少复杂度和因此产生的风险。
+如果我们需要验证用户身份，比如，控制用户可以收到特定内容，我们需要提供一些验证的表单。如果我们想要保留用户登录一次的认证，我们需要提供session管理。尽管大家都知道而且有很多全功能支持的类库，有两种错误的用法在OWASP前十名赢得前两位。
+认证和授权是不一样的概念，认证证明一个用户是真实的。比如，当你登录到你的银行，你的银行会验证确实是你而不是一个攻击者试图窃取你的钱财。认证定义一个用户是否有权执行一些操作。你的银行也许使用授权来允许你查看透支限额，但是不允许你去改变他。session管理捆绑认证和授权在一起。确保一个特定用户只能发送特定相关的请求。没有session管理，用户在每次给服务器发送请求时就失去的授权。这三点，授权，认证，session管理--适应于用户和服务。使这三点在我们系统中分离可以减少复杂度和因此产生的风险。
 <img src="assets/imgs/safe_2.png"/>
-
 ￼
 有很多方法可以执行认证。无论你选的那种方式，明智之举是选择一个现存成熟的类库。这些类库每过一段时间就会被审查来避免一些通用错误。
-一个总体的担心是当用户在互联网发送请求时怎么才能确保证书私有。最简单的，也是唯一的途径是，遵照之前说的，对一切使用HTTPS。
-一种方式是使用HTTP协议指定的简单挑战-相应（challenge-response）机制来作为客户机向验证服务器。当你的浏览器遭遇包含挑战访问资源信息的401（unauthorized）响应，他会弹出一个对话框让你输入用户名和密码，并且保存在内存中随后使用。这种机制有缺点，最严重的是用户只能通过管理浏览器来登出系统。
-一种安全的方式，允许你管理用户认证后session生命周期用过输入证书通过web表单。这种方式和从一个数据表中查找一个用户名在数据库中哈希的密码然后验证一样简单。比如使用Devise，一个流行的Ruby on Rails类库，这个可以用来注册一个密码认证模块来验证用户模型，在到达controller之前使用类库来认证用户。
-
+主要担心的是当用户在互联网发送请求时怎么才能确保证书私有。最简单的，也是唯一的途径是，遵照之前说的，对一切使用HTTPS。
+一种方式是使用HTTP协议指定的简单挑战（challenge-response）机制来作为客户机向服务器进行验证。当你的浏览器遭遇包含挑战访问资源信息的401（unauthorized）响应，他会弹出一个对话框让你输入用户名和密码，并且保存在内存中随后使用。这种机制有缺点，最严重的是用户只能通过浏览器来登出系统。
+一种安全的方式，用过证书来代表用户认证后的session生命周期,并在提交表单中携带证书。这种方式和从数据表中查找一个用户名的哈希的密码然后验证一样简单。比如使用"Devise"，一个流行的Ruby on Rails类库用来注册一个密码认证模块来验证用户模型，在到达controller之前使用类库来认证用户。
 # Register Devise’s database_authenticatable module in our User model to
 # handle password authentication using bcrypt. We can optionally tune the work
 # factor with the 'stretches' option.
@@ -546,77 +544,62 @@ end
 # Superclass to inherit from in controllers that require authentication
 class AuthenticatedController < ApplicationController
 before_action :authenticate_user!
-        end
-
+end
 
 <h3>了解你的选择</h3>
-尽管认证使用用户名和密码对于很多系统已经足够，但是他并不是我们唯一的选择。我们可以依赖用户可能已经拥有账户的外部服务提供商来验证。我们也可以使用各种不同的选择来认证：一些你知道的东西，比如密码或PIN码，或者电话或钥匙包，也可以是指纹，看你需要什么了，这些选择值得认证考虑，如果我们需要添加额外的保护层是有益处的。
-一种是提供给用户使用它们Facebook，google或twitter登录的便利选择，使用一个叫做单点登录的服务，单点登录允许用户登录不同系统使用单一身份。比如访问一个网站你可以看到“使用twitter账号登录”，想要这么做，单点登录依赖外部服务来管理用户登入和身份。用户永远不用给我们的站点提供任何证书。
-单点登录可以显著减少登录站点的时间，也不需要用户需要记住其他用户名密码。然而一些用户可能更喜欢保留访问我们网站的私有信息在别处。一些没有账户的用户可以通过我们提供的外部提供商注册。最好的情况是允许用户输入个人信任手动注册。
-只提供用户名和密码登录有时候不能有效的保证用户安全。使用其他其他验证因子可以添加一个安全层来保护用户在实践中泄露密码。双因子认证（2FA），一个两种不同因子的认证来确认用户身份。一些用户知道的，比如用户名密码认证，当做第一个认证因子，第二个因子应当时一些用户拥有，比如通过软件在用户手机上生成的密钥或者硬件token。通过短信来验证密钥是比以前较流行的做法，但是现在因为各种风险被弃用。像谷歌和其他应用提供的认证服务相对会比较安全和容易实现，尽管如果一个应用需要考虑管理敏感信息方面的复杂度会有所提高。
+尽管使用用户名,密码认证对于很多系统已经足够，但是这并不是唯一的选择。还可以通过用户已经拥有的外部账号来认证。我们也可以使用各种不同的选择来认证：一些你知道的东西，比如密码或PIN码，或者电话或钥匙包，也可以是指纹，看你需要什么了，这些选择值得认证考虑，如果我们需要添加额外的保护层是有益处的。
+一种是提供给用户使用它们Facebook，google或twitter登录的便利选择，使用单点登录服务，允许用户登录不同系统使用单一身份。比如访问一个网站你可以看到“使用twitter账号登录”，想要这么做，单点登录依赖外部服务来管理用户登入和身份。用户永远不用给我们的站点提供任何证书。
+单点登录可以显著减少登录站点的时间，也不需要用户需要记住其他用户名密码。一些没有账户的用户可以通过我们提供的外部服务注册。最好的情况是允许用户输入个人信息来手动注册。
+只提供用户名和密码登录有时候不能有效的保证用户安全。使用其他验证因子可以添加一个安全层来保护用户在实践中泄露密码。双因子认证（2FA），两种不同因子的认证来确认用户身份。比如用户名密码认证，当做第一个认证因子，第二个因子应当是一些用户拥有比如通过软件在用户手机上生成的密钥或者硬件token。通过短信来验证密钥也是目前以前较流行的做法，但是目前因为各种风险被弃用。像谷歌和其他应用提供的认证服务相对会比较安全和容易实现，尽管会提高管理敏感信息的复杂度会。
 
 <h3>重新认证是重要的行为</h3>
-
 登录并不是对于认证来说唯一重要的事情，当用户执行敏感行为比如修改密码或转账时，我们经常使用它来提供额外的保护。他可以帮我朱门在用户操作账户时减低泄露的风险。比如，一些在线商家当你买东西的时候需要你重新输入一些信用卡细节信息。对于用户更新个人信息时，需要重新输入密码是非常有用的。
 
 <h3>隐瞒用户是否存在</h3>
-
-当一个用户在输入用户名密码时出现错误，我们一般会受到一个提示：用户名不存在，提示一个用户是否存在可以帮助攻击者枚举你系统上的用户来提供未来的攻击或者，取决于网站的性质，揭露一个用户的存在可能泄露它的隐私。一个更好的，更通用的提示信息应该是：用户名或密码错误。
-这个建议不仅仅应用于登录，用户在很多系统功能中可以被枚举，比如报名或者重设密码。铭记避免泄露不必要的信息。替代方案是在用户输入邮箱后发送一个邮件，使用链接来注册或重置密码，而不是返回一个用户名是否存在的消息。
+当一个用户在输入用户名密码时出现错误，我们有时会收到一个提示：用户名不存在，提示一个用户是否存在可以帮助攻击者枚举你系统上的用户，这取决于网站的性质，展示一个用户是否存在可能泄露隐私。一个更好的，更通用的提示信息应该是：用户名或密码错误。
+这个建议不仅仅应用于登录，用户可以被很多系统功能枚举，比如报名或者重设密码。铭记避免泄露不必要的信息。替代方案是接收用户输入邮箱后发送一个邮件，使用链接来注册或重置密码，而不是返回一个用户名是否存在的消息。
 
 <h3>防止暴力破解</h3>
-一个攻击者可能进行暴力破解来猜测你的账户密码。现在攻击者一般可以使用被入侵的僵尸网络来进行攻击，找到一个预防侵入的方法很有挑战。有很多方法可以考虑，我们下面会讨论，大多数安全考虑，带来了好处的同时也会带来权衡。
-一个很好的开始来减缓攻击者攻击的方法是当登录失败次数过多时暂时锁定用户。这可以减少一个账户被泄露的风险，但是它会带来另一个风险，攻击者使用这种服务来锁定用户。如果锁定需要管理员来手动解锁，他会给系统带来灾难。另外一方面，锁定用户可以会提供攻击者验证账户是否存在。当然，他会让增强攻击者的攻击难度。使用10到60秒可以有效的防御已经规避风险。
-另外一个流行的做法是使用CAPTCHAs，就是提供一种只有人可以解决，计算机无法解决的防止自动攻击的方法。这是有效策略的一部分，但当面临指责和批评时就会减轻效果。技术的进步使得电脑解决这些问题更准确，雇佣一个人工智能机器来解决它也变得很便宜。而且一个重要的考量是让我们的网站对于是视觉听觉障碍的人变得可访问。
-以上这些策略被视为应对暴力攻击有效的手段，如果一个账户登录错误两次，CAPTCHA就会出现，如果继续错误，账户会被暂时锁住。如果还是出现错误，会再次锁住账户，这次发送一个邮件给账户来解锁。
+攻击者可以使用暴力破解来猜测你的账户密码。攻击者一般使用被入侵的僵尸网络来发起攻击，大多数安全考虑带来好处的同时也带来需要权衡的地方。
+你需要一个好的开始来减缓攻击者的攻击, 当登录失败次数过多时暂时锁定用户。这可以减少一个账户被攻击的风险，但是它会带来另一个风险，攻击者使用这种服务来锁定用户。如果锁定需要管理员来手动解锁，他会给系统带来灾难。另外一方面，锁定用户可以会提供攻击者验证账户是否存在。当然，它会让增强攻击者的攻击难度。如果使用10到60秒锁定就可以有效的防御规避风险。
+另外一个流行的做法是使用CAPTCHAs，就是提供一种只有人可以解决，计算机无法解决的方式防止自动攻击。这是有效策略的一部分，但同样当面临指责和批评。技术的进步使得电脑解决这些问题变的更准确，雇佣一个人工智能机器人来解决它变的很便宜。让我们的网站对于是视觉听觉有障碍的人变得可访问也是一个重要的考量。
+以上这些策略都被视为应对暴力攻击有效的手段，如果一个账户登录错误两次，CAPTCHA就会出现，如果继续错误，账户会被暂时锁住。如果还是出现错误，会再次锁住账户，这次需要发送一个邮件来解锁账户。
 
-<h3>不要使用缺省或硬编码凭证</h3>
-运输软件如果使用缺省凭证会很容易被猜测出给用户和应用都带来风险。看起来他给用户提供了便利，但是现实是远离真相。通常来看像路由器和物联网设备这样的嵌入式系统这样可以简单连接网络。更好的选择是需要用户输入一次密码然后不允许用户修改，或没有设定密码不允许访问外网。
-有时硬编码凭证被添加到开发和调试程序中，当运输软件时可能忘记也会带来相同的风险。更坏的是，有可能用户可能修改或禁用凭证。永远不要在软件中硬编码凭证。
+<h3>不要使用缺省或硬编码来验证</h3>
+很容易被猜测的航运软件用户凭证会给用户和应用都带来风险。看起来给用户提供了便利，但是现实不是这样。像路由器和物联网设备这样的嵌入式系统这样可以简单连接网络。更好的选择是需要用户输入一次密码然后不允许用户修改，或在没有设定密码的情况下不允许访问外网。
+有时硬编码验证会在开发和调试程序中被添加，在软件发布时忘记删除。更坏的是，有可能导致用户无法修改或禁止证书。永远不要在软件中硬编码验证。
 
 在类库中
-大多数web应用类库包含认证实现来支持各种人份验证方案，还有一些三方类库也可以选择，正如我们前面提到的，我们最好可以找到一个存在的，成熟的类库。下面是一些例子：
-
+大多数web应用类库包含认证实现来支持各种认证方案，还有一些三方类库也可以选择，正如我们前面提到的，我们最好可以找到一个存在的，成熟的类库。下面是一些例子：
 <table class="input-validation-approaches">
 <thead><tr><th>Framework</th><th>Approaches</th></tr></thead>
-
-<tbody>
-<tr class="even first"><td rowspan="2">Java</td><td>Apache Shiro</td></tr>
-
-<tr class="even"><td>OACC</td></tr>
-
-<tr class="odd first"><td rowspan="1">Spring</td><td>Spring Security</td></tr>
-
-<tr class="even first"><td rowspan="1">Ruby on Rails</td><td>Devise</td></tr>
-
-<tr class="odd first"><td rowspan="2">ASP.NET</td><td>ASP.NET Core authentication</td></tr>
-
-<tr class="odd"><td>Built-in Authentication Providers</td></tr>
-
-<tr class="even first"><td rowspan="1">Play</td><td>play-silhouette</td></tr>
-
-<tr class="odd first"><td rowspan="1">Node.js</td><td>Passport framework</td></tr>
-</tbody>
+  <tbody>
+    <tr class="even first"><td rowspan="2">Java</td><td>Apache Shiro</td></tr>
+    <tr class="even"><td>OACC</td></tr>
+    <tr class="odd first"><td rowspan="1">Spring</td><td>Spring Security</td></tr>
+    <tr class="even first"><td rowspan="1">Ruby on Rails</td><td>Devise</td></tr>
+    <tr class="odd first"><td rowspan="2">ASP.NET</td><td>ASP.NET Core authentication</td></tr>
+    <tr class="odd"><td>Built-in Authentication Providers</td></tr>
+    <tr class="even first"><td rowspan="1">Play</td><td>play-silhouette</td></tr>
+    <tr class="odd first"><td rowspan="1">Node.js</td><td>Passport framework</td></tr>
+  </tbody>
 </table>
 
 <h3>小结</h3>
 #使用已经存在的验证框架而不要自己写
 #支持你需要的有意义的认证方式
-#限制攻击者控制一个账户的能力
-#你应该一步一步的预防识别和泄露账户攻击
-#不要使用默认的或硬编码凭证
+#组织攻击者控制一个账户
+#你应当采取措施来预防攻击者识别或泄露账户
+#不要使用缺省的或硬编码凭证
 
 <h2>保护用户Session</h2>
-由于HTTP在用户访问过程中的无状态机制. 一般情况是使用Session管理未登录用户和认证用户状态.之前说过,session管理可以用在管理用户和服务中.
-
-Session是对攻击者来说是很有吸引力的.如果一个攻击者破坏了session管理从而劫持了认证session,就可以有效地攻破真个认证体系.更坏的是,经常可以看到session管理的实现存在很大的风险,那么我们应该怎么做呢?
-
-认证最好使用已经存在并且成熟的类库,然后调整到你需要的模式.使用已经存在的类库的好处是你可以专心在你需要什么,我们会分两部分讨论一下session管理的常见问题: session识别码生成, 和session生命周期.
+由于HTTP协议在用户访问过程中的无状态性. 通常使用Session管理未登录用户和认证用户的状态. 之前说过, Session管理可以用在管理用户和服务中.
+Session对攻击者来说很具有吸引力. 如果一个攻击者攻破了Session管理从而劫持了认证Session, 就可以有效地攻破整个认证体系. 更坏的是, 经常看到Session管理存在很大的风险,那么我们应该怎么做呢?
+认证最好使用已经存在而且成熟的类库,然后调整到你需要的状态. 使用已经存在的类库的好处是你可以专心在你需要什么, 我们会分两部分讨论一下session管理的常见问题: session识别码生成, 和session生命周期.
 
 <h3>生成安全Session识别码</h3>
-一般来说Session会生成识别码并存储在Cookie中作为后续访问使用. 这些识别码的安全依靠不可预期性,唯一性和保密性.如果一个攻击者可以获取session识别码然后通过猜测或观察,他们就可以劫持这个用户的session.
-
-经常可以看到一些安全识别码的实现方式可被预测造成很容易被破解.举个例子,我们可以看到这样的cookie:
+一般做法是使用Session生成识别码并存储在Cookie中作为后续访问使用. 这种识别码的安全性必须依赖于:不可预期性,唯一性和保密性. 如果一个攻击者获取了session识别码然后通过猜测或观察,他们就可以劫持这个用户的session.
+经常可以看到一些安全识别码的实现方式可被预测从而很容易被破解. 举个例子,我们可以看到这样的cookie:
 Set-Cookie: sessionId=NzU4NjUtMTQ2Nzg3NTIyNzA1MjkxMg
 如果一个攻击者登录多次来观察session cookie的生成序列会发生什么?
 NzU4ODQtMTQ2Nzg3NTIyOTg0NTE4Ng
@@ -625,94 +608,71 @@ NzU4OTItMTQ2Nzg3NTIzNTQwODEzOQ
 75865-1467875227052912
 75884-1467875229845186
 75892-1467875235408139
-非常简单可以看出这个token是由数字序列,和毫秒两部分组成,像这样的识别码攻击者可以轻易的猜到和劫持sessions.尽管这是简单的例子,其他的生成方式也不会比这个好太多.攻击者可以使用免费的分析工具来破解复杂的token.使用可预测的输入比如时间或用户ip来生成token都是不够的.那么怎么才能更安全的生成识别码?
-
-减低攻击者猜测token最有效的方式请参见<a href="https://www.owasp.org/index.php/Session_Management_Cheat_Sheet">OWASP's Session管理小结</a>推荐使用最小128bit(16 bytes)的随机生成的session识别码.几个例子java和ruby都支持SecureRandom来生成随机数.
-
-很多session管理为了减少数据库开销,将用户信息直接放入cookie中而不是只存放识别码在服务端进行查询.如果不使用非常严格的加密算法来确保数据的保密性,完整性,真实性,这会导致很多问题.
-
-是否应当存储用户信息到cookie中应该慎重考虑,不应该轻易决策.原则是,除非绝对需要不要轻易把信息放入cookie.即使加密也永远不要存储个人机密身份识别码信息.如果信息中包含用户名或角色和特权级别,你必须防止攻击者篡改数据绕过认证或劫持其他用户账户的风险.如果你选择存储在cookie中存储这种类型的信息,寻找一个存在的并且经过专家审查的类库来处理他.
+非常简单可以看出这个token是由数字序列,和毫秒两部分组成,像这样的识别码攻击者可以轻易的猜到和劫持sessions. 尽管这是简单的例子,其他的生成方式也不会比这个好太多.攻击者可以使用免费的分析工具来破解复杂的token. 使用可预测的输入比如时间或用户ip来生成token都是不够好的.那么怎么才能更安全的生成识别码?
+减低攻击者猜测token最有效的方式请参见<a href="https://www.owasp.org/index.php/Session_Management_Cheat_Sheet">OWASP's Session管理小结</a> 文章推荐使用最小128bit(16 bytes)的随机生成的session识别码. 比如java和ruby都支持SecureRandom来生成随机数.
+很多session管理为了减少数据库开销,将用户信息直接放入cookie中而不是存放识别码在服务端进行查询. 如果不使用非常严格的加密算法来确保数据的保密性,完整性,真实性,这会导致很多问题.
+是否应当存储用户信息到cookie中应该慎重考虑, 不应该轻易决策. 原则是, 除非绝对需要, 不要轻易把用户信息放入cookie中. 即使加密也永远不要存储个人机密身份识别码信息. 如果信息中包含用户名或角色和特权级别, 你必须防止攻击者篡改数据来绕过认证或劫持其他用户账户的风险. 如果你选择在cookie中存储这类信息, 寻找一个存在的并且经过专家审查的类库来处理他.
 
 <h3>不要暴露session识别码</h3>
-使用HTTPS可以帮助预防网络中窃取session识别码,但是仍然存在其他的泄露风险.一个经典的例子是,一个航空公司用户发送自己的链接给一个朋友,这个链接中包含了用户session识别码信息,那么他的朋友这时可以使用这个链接订机票.
-
-不用说就知道,暴露session识别码在URL中有风险,就像上面的例子,暴露在Referer header中当点击一个外链,或登录网站的日志. Cookie是一个很好的选择因为它不存在这类风险.session识别码经常在HTTP header中发送或在POST body中,无所谓你选择哪种,确保session识别码不要暴露在URL中,日志中,referer header中或其他容易被攻击的地方.
+使用HTTPS可以帮助预防网络中窃取session识别码, 但仍存在其他的泄露风险. 一个经典的例子是,一个航空公司用户发送自己的链接给一个朋友, 这个链接中包含了用户session识别码信息, 那么他的朋友这时可以通过这个链接订机票.
+不用说就知道, 暴露session识别码在URL中有风险, 或就像上面的例子, 当点击一个外链时个人信息暴露在Referer header或登录网站的日志中. Cookie是一个很好的选择因为它不存在这类风险. Session识别码经常在HTTP header中发送或在POST Body中, 无所谓哪种, 确保session识别码不要暴露在URL中,日志中,referer header中或其他容易被攻击的地方.
 
 <h3>保护你的Cookies</h3>
-当cookies中保存session信息时,我们应该简单的预防泄露.这里有四个重要属性来预防: Domain, Path, HttpOnly 和Secure.
-Domain用来限制cookie发送的区域,Path可以限制一个区域的路径和子路径. 默认情况下Domain设置允许发送到原始域和子域,默认的Path会限制cookie可以被发送到的路径和子路径.
-
-不设定Domain限制会带来风险, 想象如果我们设定Domain到xxx.com 当访问payment.xxx.com来付款. 由于cookie会被发送到xxx.com和他所有的子域. 如果我们并不能控制每个子域或每个子域并不一定都使用https,应该确保cookie可以被发送到任何子域.因为这可能会帮助攻击者获取cookie,比如一个用户访问evil.xxx.com?
-Path 属性也应该设定限定.如果登陆后,session识别码只需要在访问/secret/携带,那么设定Path为secret是非常好的.
-
-其他两个属性,Secure和HttpOnly,控制cookie的使用. Secure代表浏览器只会在HTTPS下发送cookie, HTTPOnly代表cookie不允许通过javascript或其他客户端脚本访问.
+如果cookies中保存了session信息, 我们应该简单的预防泄露.这里有四个重要属性来预防: Domain, Path, HttpOnly 和Secure.
+Domain用来限制Cookie发送的区域, Path可以限制一个区域的路径和子路径. 默认情况下Domain设置允许发送到原始域和子域, 默认的Path用来限制cookie可以被发送到的路径和子路径.
+不设定Domain限制会带来风险, 想象如果我们设定Domain到xxx.com 当访问payment.xxx.com来付款. 由于cookie会被发送到xxx.com和他所有的子域. 如果我们并不能控制每个子域都使用https, 应该确保cookie可以被发送到指定子域. 因为这可能会帮助攻击者获取cookie,比如一个用户访问evil.xxx.com?
+Path属性也应该设定限定. 如果登陆后, session识别码只需在访问/secret/时携带, 那么设定Path为secret是非常好的.
+其他两个属性,Secure和HttpOnly, 用来控制cookie的使用. Secure代表浏览器只会在HTTPS下发送cookie, HTTPOnly代表cookie不允许通过javascript或其他客户端脚本访问.
 
 这些属性全部设置后,我们的cookie会变成这样:
 Set-Cookie: sessionId=[top secret value]; path=/secret/; secure; HttpOnly;
   domain=payments.xxx.com
-
 这样设置后在网络传输中我们的cookie只允许在http://payment.xxx.com/secret中使用.大大降低被攻击的可能性.
 
 <h3>管理session生命周期</h3>
 管理session生命周期会减少泄露风险.这取决于你的需求.比如一个银行系统与猫图网站的session生命周期肯定不同.
-
-大多数情况当用户第一次请求时或第一次登录时或获取session. 不管怎么做, 如果用户改变session权限级别都会存在风险.如果一个攻击者可以设置用户的session标识值到攻击者已知的更低权限会发生什么,比如通过cookie或表单隐藏域? 如果一个攻击者可以诱骗用户登录,他们就可以控制更多的session级别.这种攻击叫做"session fixaion".我们可以通过这两件事情来预防这种把戏.第一我们应该在用户登录后或提升权限后创建一个新的session.第二,我们只允许自己创建session识别码,忽略不存在的识别码.千万不要这么做:
+大多数情况当用户第一次请求时或第一次登录时获取session. 不管怎么做, 如果用户变更session权限级别时就会存在风险. 如果一个攻击者可以设置用户的session标识值到攻击者已知的更低权限会发生什么, 比如通过cookie或表单隐藏域? 如果一个攻击者可以诱骗用户登录,他们就可以控制更多的session级别. 这种攻击叫做"session fixaion". 我们可以通过这两件事情来预防这种把戏. 第一我们应该在用户登录后或提升权限后创建一个新的session. 第二,我们只允许自己创建session识别码, 忽略不存在的识别码.千万不要这么做:
 // pseudocode. NEVER DO THIS
 if (!isValid(sessionId)) {
     session = createSession(sessionId);
 }
-
-session存在的时间越长,攻击者就更有可能得到它.减少这类风险应该保证你的session表干净,我们可以在用户没有活动时加强session失效机制.失效时间决定你的风险妥协程度.一个猫图网站可以设置为一个月或更长.但是银行session失效策略应该十分钟.
-
-我们用户很有可能忘记登出.一定要保证有一个简单可用的登出机制.当用户登出后,我们应该在浏览器端销毁session cookie通过设定失效日期.比如:
+session存在的时间越长, 攻击者就更有可能得到它. 经常管理你的Session表来减少这类风险, 我们可以在用户没有活动时加强session失效机制. 失效时间取决于你对风险的妥协程度. 一个猫图网站可以设置为一个月或更长. 但是银行session失效策略应该十分钟.
+我们用户很有可能忘记登出. 一定要保证有一个简单可用的登出机制. 当用户登出后, 我们应该在浏览器端销毁session cookie通过设定失效日期.比如:
 Set-Cookie: sessionId=[top secret value]; path=/secret/; secure; HttpOnly;
-  domain=payments.martinfowler.com; expires=Thu, 01 Jan 1970 00:00:00 GMT
-
-最后应该给同用户提供关闭所有有效session的方式.简单做法是关闭所有session当用户修改密码时. 如果能给用户提供一个查看有效session列表的功能可以帮助他们识别风险.
+domain=payments.martinfowler.com; expires=Thu, 01 Jan 1970 00:00:00 GMT
+最后, 应该给用户提供关闭所有有效session的机制. 简单做法是关闭所有session当用户修改密码时. 如果能给用户提供一个查看有效session列表的功能可以帮助他们识别风险.
 
 <h3>验证</h3>
-在认证和session管理中有很多应该考虑的部分,如果你想确定没有犯错误,你可以看一看OWASP’s ASVS(<a href="https://www.owasp.org/index.php/Category:OWASP_Application_Security_Verification_Standard_Project">Application Security Verification Standard</a>),这是一个很有价值的资源来确保你的实现方式有没有漏洞.
+在认证和session管理中有很多应该考虑的部分, 如果你想确定没有犯错误, 你可以看一看OWASP’s ASVS(<a href="https://www.owasp.org/index.php/Category:OWASP_Application_Security_Verification_Standard_Project">Application Security Verification Standard</a>), 这是一个很有价值的资源来确保你的实现方式有没有漏洞.
 
 <h3>类库</h3>
-我们列出了一些生成session识别码和session生命周期管理的风险.幸运的是,session管理在主流的类库中都被支持,提供一些成熟的选项来使用可以规避风险.
+我们列出了一些生成session识别码和session生命周期管理的风险. 幸运的是, Session管理在主流的类库中都被支持,提供一些成熟的选项来使用可以规避风险.
 <table class="input-validation-approaches">
-<thead><tr><th>Framework</th><th>Approaches</th></tr></thead>
-
-<tbody>
-<tr class="even first"><td rowspan="4">Java</td><td>Tomcat</td></tr>
-
-<tr class="even"><td>Jetty</td></tr>
-
-<tr class="even"><td>Apache Shiro</td></tr>
-
-<tr class="even"><td>OACC</td></tr>
-
-<tr class="odd first"><td rowspan="1">Spring</td><td>Spring Security</td></tr>
-
-<tr class="even first"><td rowspan="2">Ruby on Rails</td><td>Ruby on Rails</td></tr>
-
-<tr class="even"><td>Devise</td></tr>
-
-<tr class="odd first"><td rowspan="2">ASP.NET</td><td>ASP.NET Core authentication</td></tr>
-
-<tr class="odd"><td>Built-in Authentication Providers</td></tr>
-
-<tr class="even first"><td rowspan="1">Play</td><td>play-silhouette</td></tr>
-
-<tr class="odd first"><td rowspan="1">Node.js</td><td>Passport framework</td></tr>
-</tbody>
+  <thead><tr><th>Framework</th><th>Approaches</th></tr></thead>
+  <tbody>
+    <tr class="even first"><td rowspan="4">Java</td><td>Tomcat</td></tr>
+    <tr class="even"><td>Jetty</td></tr>
+    <tr class="even"><td>Apache Shiro</td></tr>
+    <tr class="even"><td>OACC</td></tr>
+    <tr class="odd first"><td rowspan="1">Spring</td><td>Spring Security</td></tr>
+    <tr class="even first"><td rowspan="2">Ruby on Rails</td><td>Ruby on Rails</td></tr>
+    <tr class="even"><td>Devise</td></tr>
+    <tr class="odd first"><td rowspan="2">ASP.NET</td><td>ASP.NET Core authentication</td></tr>
+    <tr class="odd"><td>Built-in Authentication Providers</td></tr>
+    <tr class="even first"><td rowspan="1">Play</td><td>play-silhouette</td></tr>
+    <tr class="odd first"><td rowspan="1">Node.js</td><td>Passport framework</td></tr>
+  </tbody>
 </table>
 
 <h3>小结</h3>
 #使用成熟的session类库
-#保持session识别码机密性,不要放到URL或日志中.
-#使用属性来限制保护session cookie的使用范围
-#当一个不存在或修改权限级时创建一个新的session.
-#不要使用id创建session,不要自己创建session
-#确保用户可以登出系统以及可以销毁自己的所有有效session.
+#保持session识别码机密性, 不要放到URL或日志中.
+#使用配置来限制保护session cookie的使用范围
+#当session不存在或修改权限级别时创建一个新的Session.
+#不要使用id创建session,不要自己创建session.
+#确保用户可以登出系统以及可以销毁自己的所有有效Session.
 
 </pre>
-
 </section>
 
 
