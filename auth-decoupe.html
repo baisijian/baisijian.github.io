@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html class='no-js' lang="zh-cn">
+  <head>
+    <title>基于分布式单点认证</title>
+    <meta http-equiv="x-ua-compatible" content="IE=edge">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="index, follow">
+    <link rel='shortcut icon' href='@@assets/imgs/favicon.ico' type='image/x-icon'>
+    <link rel="stylesheet" type="text/css" href="assets/css/lib/bootstrap.min.css">
+    <link rel="stylesheet" href="assets/css/homepage.css"/>
+      <script>
+          (function(H){H.className=H.className.replace(/\bno-js\b/,'js')})(document.documentElement);
+      </script>
+
+      <script>
+          window.HB = window.HB || {};
+          window.HB.pageData = {
+              name: "hb:buy:homepage",
+              channel: "buy",
+              agentNameAutoSuggestionURL: "http://www.test.com/suggest.ds",
+              autoSuggestionURL: "http://suggest.com/smart-suggest"
+          };
+      </script>
+      <script src="assets/js/lib/boilerplate.js"></script>
+  </head>
+  <![if !IE]> <body class="buy"> <![endif]>
+
+    <nav class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+        <div class="container">
+            <!-- Brand and toggle get grouped for better mobile display -->
+            <div class="navbar-header">
+                <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+                    <span class="sr-only">Toggle navigation</span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </button>
+                <a class="navbar-brand" href="/">ICoding</a>
+            </div>
+            <!-- Collect the nav links, forms, and other content for toggling -->
+            <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/agile.html">敏捷实践</a>
+                    </li>
+                    <li>
+                        <a href="/safe.html">网络安全</a>
+                    </li>
+                    <li class="dropdown">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown">测试 <b class="caret"></b></a>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <a href="/test.html">单元测试</a>
+                            </li>
+                            <li>
+                                <a href="/ftest.html">功能测试</a>
+                            </li>
+                        </ul>
+                    </li>
+                    <li class="dropdown">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown">前后端分离 <b class="caret"></b></a>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <a href="/frontend.html">前端架构</a>
+                            </li>
+                            <li>
+                                <a href="/backend.html">后端架构</a>
+                            </li>
+                        </ul>
+                    </li>
+                    <li class="dropdown">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown">安全认证 <b class="caret"></b></a>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <a href="/auth-token.html">基于Token的认证</a>
+                            </li>
+                            <li>
+                                <a href="/auth-decoupe.html">基于分布式单点认证</a>
+                            </li>
+                            <li>
+                                <a href="/auth-jwt.html">Json Web Token(JWT)认证</a>
+                            </li>
+                        </ul>
+                    </li>
+                    <li class="dropdown">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown">Server less <b class="caret"></b></a>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <a href="/">未来无服务架构</a>
+                            </li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    
+
+<section class="safe-container">
+<pre>
+    第二篇主要说明如何将将资源服务器和授权服务器分离, 基于micro service搭建的服务越多, 如果夸服务之间认证是必要的, 你的架构不会只是一台服务器.这里我将会吧认证服务器和资源服务器分离.当然将来可能会有很多资源服务器.
+<h1>Oauth2.0角色:认证服务器, 资源服务器, 客户端</h1>
+首先需要先了解一下<a href="https://tools.ietf.org/html/rfc6749#section-1.1">Oauth2.0 Roles</a>的定义. 搞清楚每一个角色如下图:
+<img src="assets/imgs/auth-token4.jpg">
+<h3>Resource Owner:</h3>
+拥有受保护资源的个体
+
+<h3>Resource Server:</h3>
+承载受保护资源的服务器, 这台服务器可以接受认证服务器发放的access tokens, 如果access token存在则返回受保护资源.
+
+<h3>Client Applications:</h3>
+应用从资源服务器请求受保护资源, 此客户端可以从资源所有者哪里获取access token
+
+<h3>Authorization Server:</h3>
+管理认证的服务器, 验证资源所有者身份后对客户端发放access tokens.
+
+注意: 在架构中我们可以创建单认证服务器来发放access token, 多资源服务器消费token.
+
+<h2>创建资源服务器</h2>
+我们来创建一个包含受保护资源的Web API项目,为了尽量简单一下, 我会添加一个ProtectedController, 任何合法的请求应该包含认证服务器发放的有效的bearer token , ok, 开始吧:
+
+<h3>第一步:创建Web API资源服务器</h3>
+添加一个ASP.NET 应用选择Empty模板如图:
+<img src="assets/imgs/auth-token5.jpg">
+
+<h3>第二步:安装包依赖</h3>
+因为是空项目,所以我们需要自己手动安装包依赖来配置ASP.NET Web API托管在OWIN server, 然后配置它仅使用OAuth2.0 bearer tokens认证中间层. 安装依赖如下:
+Install-Package Microsoft.AspNet.WebApi -Version 5.2.2
+Install-Package Microsoft.AspNet.WebApi.Owin -Version 5.2.2
+Install-Package Microsoft.Owin.Host.SystemWeb -Version 3.0.0
+Install-Package Microsoft.Owin.Cors -Version 3.0.0
+Install-Package Microsoft.Owin.Security.OAuth -Version 2.1.0
+
+<h3>第三步:添加OWIN"Startup"类</h3>
+添加一个新类"Startup":
+public class Startup
+{
+    public void Configuration(IAppBuilder app)
+    {
+        HttpConfiguration config = new HttpConfiguration();
+
+        ConfigureOAuth(app);
+
+        WebApiConfig.Register(config);
+        app.UseCors(Microsoft.Owin.Cors.CorsOptions.AllowAll);
+        app.UseWebApi(config);
+
+    }
+
+    private void ConfigureOAuth(IAppBuilder app)
+    {
+        //Token Consumption
+        app.UseOAuthBearerAuthentication(new OAuthBearerAuthenticationOptions
+        {
+        });
+    }
+}
+在上一篇文章中,这个类会在资源服务器启动时被执行一次,你可以发现,我通过enabled CORS来允许资源服务器可以接受跨域的XHR请求.
+值得注意的是"ConfigOAuth"方法的实现,在这个方法里我们配置资源服务器只接受bearer token. 如果没有这个方法你的资源服务器就不能处理请求中的bearer tokens.
+
+<h3>第四步:添加"WebApiConfig"类</h3>
+需要添加WebApiConfig类在文件夹"App_Start"下:
+public static class WebApiConfig
+{
+    public static void Register(HttpConfiguration config)
+    {
+        // Web API routes
+        config.MapHttpAttributeRoutes();
+
+        var jsonFormatter = config.Formatters.OfType<JsonMediaTypeFormatter>().First();
+        jsonFormatter.SerializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver();
+    }
+}
+添加这个类允许controller的路由属性
+
+<h3>第五步:添加新的安全controller</h3>
+现在我们来添加controller来提供受保护资源,这个controller会返回资源给认证用户,添加新controller叫"ProtectedController"在"Controllers"文件夹下,代码如下:
+[Authorize]
+[RoutePrefix("api/protected")]
+public class ProtectedController : ApiController
+{
+    [Route("")]
+    public IEnumerable<object> Get()
+    {
+        var identity = User.Identity as ClaimsIdentity;
+
+        return identity.Claims.Select(c => new
+        {
+            Type = c.Type,
+            Value = c.Value
+        });
+    }
+}
+注意我们添加的属性[Authorize], 这是属性保护这个资源只允许header中包含有效bearer access token 的HTTP GET请求. 请求被OAuth bearer 认证中间件处理的细节是:
+1.从"Authorization header"中的Bearer中提取access token
+2.从access token中提取"authentication ticket", ticket中包含身份声明和其他身份认证属性.
+3.检查"authentication ticket"的有效期
+
+<h3>第六步:在不同的机器上Host认证服务器和资源服务器</h3>
+直到这一步,如果你是本地开发,如果你想从认证服务器上获得access token,比如(http://AuthServer/token)然后发送access token到资源服务器比如(http://ResServer/api/protected),这时你可以拿到受保护资源,怎么做呢?
+当你本地机器想要从认证服务器上请求access token时,OAuth 中间件会使用认证服务器提供的默认数据保护功能, 他会使用machine.config中machineKey节点的“validationKey”生成access token.同样的,当你将access token发送到资源服务器时,资源服务器会使用machineKey来解码access token从而提取authentication ticket.
+但是如果我的认证服务器和资源服务器被host在不用的机器上,那么他们拥有不同的machine.config.如果使用云服务的话,你无法修改VM上的machine.config
+不建议使用在线工具来生成machineKey,因为你也不知道在线工具是否记录了你的生成,最好自己来生成.
+你可以使用power shell命令来生成machineKey, 如图:
+<img src="assets/imgs/auth-token6.jpg">
+<machineKey validationKey="A970D0E3C36AA17C43C5DB225C778B3392BAED4D7089C6AAF76E3D4243E64FD797BD17611868E85D2E4E1C8B6F1FB684B0C8DBA0C39E20284B7FCA73E0927B20" decryptionKey="88274072DD5AC1FB6CED8281B34CDC6E79DD7223243A527D46C09CF6CA58DB68" validation="SHA1" decryption="AES" />
+注意:不要在生产环境使用Power shell生成新machineKey.
+生成后在认证服务器和资源服务器的web.config中复制如下代码在<system.web>中:
+<system.web>
+    <compilation debug="true" targetFramework="4.5" />
+    <httpRuntime targetFramework="4.5" />
+    <machineKey validationKey="VALUE GOES HERE"
+                decryptionKey="VALUE GOES HERE"
+                validation="SHA1"
+                decryption="AES"/>
+</system.web>
+
+<h3>第七步:测试认证服务器和资源服务器</h3>
+现在需要从认证服务器获得access token,然后发送POST请求到资源服务器.a
+<img src="assets/imgs/auth-token7.jpg">
+然后通过header bearer发送access token:
+<img src="assets/imgs/auth-token8.jpg">
+现在你可以请求资源服务器中的被保护资源,可以通过认证服务器获取身份认证.
+</pre>
+
+
+</section>
+
+
+    <footer>
+        <div class="row">
+            <div class="col-lg-12">
+                <p>Copyright &copy; Jason.Bai 2016</p>
+            </div>
+        </div>
+    </footer>
+
+        <script type="text/javascript" src="assets/js/lib/jquery.min.js"></script>
+        <script type="text/javascript" src="assets/js/lib/bootstrap.min.js"></script>
+        <!--[if lte IE 9]>
+        <script src="assets/js/lib/jquery.placeholder.min.js"></script>
+        <![endif]-->
+        <script src="assets/js/lib/require.min.js"></script>
+        <script src="assets/js/homepage.js"></script>
+    
+
+  </body>
+
+</html>
