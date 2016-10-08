@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html class='no-js' lang="zh-cn">
+  <head>
+    <title>Json Web Token(JWT)认证</title>
+    <meta http-equiv="x-ua-compatible" content="IE=edge">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="index, follow">
+    <link rel='shortcut icon' href='@@assets/imgs/favicon.ico' type='image/x-icon'>
+    <link rel="stylesheet" type="text/css" href="assets/css/lib/bootstrap.min.css">
+    <link rel="stylesheet" href="assets/css/homepage.css"/>
+      <script>
+          (function(H){H.className=H.className.replace(/\bno-js\b/,'js')})(document.documentElement);
+      </script>
+
+      <script>
+          window.HB = window.HB || {};
+          window.HB.pageData = {
+              name: "hb:buy:homepage",
+              channel: "buy",
+              agentNameAutoSuggestionURL: "http://www.test.com/suggest.ds",
+              autoSuggestionURL: "http://suggest.com/smart-suggest"
+          };
+      </script>
+      <script src="assets/js/lib/boilerplate.js"></script>
+  </head>
+  <![if !IE]> <body class="buy"> <![endif]>
+
+    <nav class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+        <div class="container">
+            <!-- Brand and toggle get grouped for better mobile display -->
+            <div class="navbar-header">
+                <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+                    <span class="sr-only">Toggle navigation</span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </button>
+                <a class="navbar-brand" href="/">ICoding</a>
+            </div>
+            <!-- Collect the nav links, forms, and other content for toggling -->
+            <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/agile.html">敏捷实践</a>
+                    </li>
+                    <li>
+                        <a href="/safe.html">网络安全</a>
+                    </li>
+                    <li class="dropdown">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown">测试 <b class="caret"></b></a>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <a href="/test.html">单元测试</a>
+                            </li>
+                            <li>
+                                <a href="/ftest.html">功能测试</a>
+                            </li>
+                        </ul>
+                    </li>
+                    <li class="dropdown">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown">前后端分离 <b class="caret"></b></a>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <a href="/frontend.html">前端架构</a>
+                            </li>
+                            <li>
+                                <a href="/backend.html">后端架构</a>
+                            </li>
+                        </ul>
+                    </li>
+                    <li class="dropdown">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown">安全认证 <b class="caret"></b></a>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <a href="/auth-token.html">基于Token的认证</a>
+                            </li>
+                            <li>
+                                <a href="/auth-decoupe.html">基于分布式单点认证</a>
+                            </li>
+                            <li>
+                                <a href="/auth-jwt.html">Json Web Token(JWT)认证</a>
+                            </li>
+                        </ul>
+                    </li>
+                    <li class="dropdown">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown">Server less <b class="caret"></b></a>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <a href="/">未来无服务架构</a>
+                            </li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    
+
+<section class="safe-container">
+<pre>
+上一篇我们看到了怎么采取web.config中的machineKey节点的"decryptionKey","validationKey"来分离认证服务器和资源服务器. 所以当用户从认证服务器请求access token, 认证服务器会使用统一的键来加密access token, 在资源服务器接收到token时候回使用相同的键来解密access token, 然后提取认证信息.
+这样做可以非常好的解决你的问题, 但是你必须完全信任你的每个资源服务器.
+
+在一些情况下, 可能有大量的资源服务器依赖你的认证服务器, 分享decryptionKey和valitionKey给这些服务器会很低效而且不安全.你对多资源服务器使用想用的键值,如果一个服务器键值泄露,所有的资源服务都被影响.
+
+想要克服这个问题,我们需要配置认证服务器采用JSON Web Tokens(JWT)来代替默认的access token. 另外在资源服务器端我们需要配置消费JWT access tokens, 所以你将不会再需要统一的"decryptionKey"和"validationKey".
+<img src="assets/imgs/auth-token9.jpg">
+<h2>什么是JSON Web Token?</h2>
+JSON Web Token是声明用户安全token的容器, 在认证服务器和资源服务器中传输简单, 在JWT中的声明使用JSON格式是为了更好的兼容javascript的应用.
+JSON Web Token通过 JSON Web Signature(JWS)来签名, 通过JSON Web Encryption (JWE) 来加密, 我们的例子中不会传输敏感信息在JWT中, 所以我们只需要保护JWT在传输中被篡改.
+<h2>JSON Web Token(JWT) 格式化</h2>
+基本上JWT是一个由三部分由"."连接的字符串:<header>.<payload>.<signature>
+header一般由两个节点的json构成:{"type":"JWT","alg":"HS256"}, "type"一般是"JWT", "alg"代表签名token的算法, 我们采用的是HMAC-SHA256算法.
+JSON对象的有效部分包含所有的声明, 下面是例子:
+{
+  "unique_name": "SysAdmin",
+  "sub": "SysAdmin",
+  "role": [
+    "Manager",
+    "Supervisor"
+  ],
+  "iss": "http://myAuthZServer",
+  "aud": "379ee8430c2d421380a713458c23ef74",
+  "exp": 1414283602,
+  "nbf": 1414281802
+}
+构建JWT的声明都不是强制性的, 这里有更多的<a href="http://self-issued.info/docs/draft-ietf-oauth-json-web-token.html#Claims">JWT声明</a>. 我们本例中会使用这些声明:
+<ul>
+    <li>"sub"和"unique_claim"代表token适用的用户名</li>
+    <li>role代表用户角色</li>
+    <li>iss(issuer)代表认证服务器(token发行者)</li>
+    <li>"aud"(audience)代表JWT针对的接受人(依赖方-资源服务器)</li>
+    <li>"exp"代表JWT过期时间, </li>
+    <li>"nbf"(not before)代表JWT不能在这个时间前被使用</li>
+</ul>
+最后JWT签名部分由header和payload组成,base64编码, 使用"."连接.
+
+<h2>ASP.NET和Owin中间件对JSON Web tokens的支持</h2>
+ASP.NET Web API和Owin中间件没有对JWT的直接支持, 所以为了支持JWT我们需要手动实现接口"ISecureDataFormat"和实现"Protect"方法.但是在资源服务器中消费JWT有一个类库支持"Microsoft.Owin.Security.Jwt", 可以用过几行代码验证,反序列化JWT tokens.
+所以大部分繁重的工作在实现认证服务器.
+<h2>第一步:创建认证服务器(Token Issuer)</h2>
+<h3>1.1:创建认证服务器Web API 项目</h3>
+创建空项目JsonWebTokensWebApi, 选择"Empty"模板和"No Authentication"
+<h3>1.2:安装依赖</h3>
+Install-Package Microsoft.AspNet.WebApi -Version 5.2.2
+Install-Package Microsoft.AspNet.WebApi.Owin -Version 5.2.2
+Install-Package Microsoft.Owin.Host.SystemWeb -Version 3.0.0
+Install-Package Microsoft.Owin.Cors -Version 3.0.0
+Install-Package Microsoft.Owin.Security.OAuth -Version 3.0.0
+Install-Package System.IdentityModel.Tokens.Jwt -Version 4.0.0
+Install-Package Thinktecture.IdentityModel.Core Version 1.2.0
+
+"System.IdentityModel.Tokens.Jwt"是用来验证,解析和生成JWT tokens的,"Thinktecture.IdentityModel.Core" 包含“HmacSigningCredentials” 用来创建签名秘钥.
+<h3>1.3:添加Owin "Startup"</h3>
+创建Startup文件,代码如下
+public class Startup
+{
+    public void Configuration(IAppBuilder app)
+    {
+        HttpConfiguration config = new HttpConfiguration();
+
+        // Web API routes
+        config.MapHttpAttributeRoutes();
+
+        ConfigureOAuth(app);
+
+        app.UseCors(Microsoft.Owin.Cors.CorsOptions.AllowAll);
+
+        app.UseWebApi(config);
+
+    }
+
+    public void ConfigureOAuth(IAppBuilder app)
+    {
+
+        OAuthAuthorizationServerOptions OAuthServerOptions = new OAuthAuthorizationServerOptions()
+        {
+            //For Dev enviroment only (on production should be AllowInsecureHttp = false)
+            AllowInsecureHttp = true,
+            TokenEndpointPath = new PathString("/oauth2/token"),
+            AccessTokenExpireTimeSpan = TimeSpan.FromMinutes(30),
+            Provider = new CustomOAuthProvider(),
+            AccessTokenFormat = new CustomJwtFormat("http://jwtauthzsrv.azurewebsites.net")
+        };
+
+        // OAuth 2.0 Bearer Access Token Generation
+        app.UseOAuthAuthorizationServer(OAuthServerOptions);
+
+    }
+}
+这里我们创建OAuthAuthorizationServerOptions新的实例,参数如下:
+<ul>
+    <li>生成JWT的路径是http://yourserver/oauth2/token</li>
+    <li>过期时间为30分钟</li>
+    <li>通过实现CustomOAuthProvider类指定如何验证用户</li>
+    <li>通过实现“CustomJwtFormat”指定通过DPAPI使用如何生成JWT代替默认access token,注意这两种都是使用bearer方案.</li>
+</ul>
+接下来我们会实现这两个类
+<h3>1.4:资源服务器(Audience)注册</h3>
+现在我们需要配置认证服务器允许注册资源服务器, 这一步非常重要因为这一步用来鉴定那个资源服务器发起JWT token请求. 并且认证服务器只会针对这个资源服务器使用这个JWT token.
+注册一个资源服务器需要最少信息是unique client id, 和一个共享的对称秘钥. 为了简单起见, 我将使用一个内存字典存储资源服务器信息, 在真实场景下需要将他们存储在数据库中.
+现在我们来添加文件夹"Entities" 和 "Audience"类:
+public class Audience
+{
+    [Key]
+    [MaxLength(32)]
+    public string ClientId { get; set; }
+
+    [MaxLength(80)]
+    [Required]
+    public string Base64Secret { get; set; }
+
+    [MaxLength(100)]
+    [Required]
+    public string Name { get; set; }
+}
+然后添加一个新文件夹Models 和一个新类 AudienceModel:
+public class AudienceModel
+{
+  [MaxLength(100)]
+  [Required]
+  public string Name { get; set; }
+}
+然后添加AudiencesStore类:
+public static class AudiencesStore
+{
+    public static ConcurrentDictionary<string, Audience> AudiencesList = new ConcurrentDictionary<string, Audience>();
+
+    static AudiencesStore()
+    {
+        AudiencesList.TryAdd("099153c2625149bc8ecb3e85e03f0022",
+                            new Audience { ClientId = "099153c2625149bc8ecb3e85e03f0022",
+                                            Base64Secret = "IxrAjDoa2FqElO7IhrSrUJELhUckePEPVpaePlS_Xaw",
+                                            Name = "ResourceServer.Api 1" });
+    }
+
+    public static Audience AddAudience(string name)
+    {
+        var clientId = Guid.NewGuid().ToString("N");
+
+        var key = new byte[32];
+        RNGCryptoServiceProvider.Create().GetBytes(key);
+        var base64Secret = TextEncodings.Base64Url.Encode(key);
+
+        Audience newAudience = new Audience { ClientId = clientId, Base64Secret = base64Secret, Name = name };
+        AudiencesList.TryAdd(clientId, newAudience);
+        return newAudience;
+    }
+
+    public static Audience FindAudience(string clientId)
+    {
+        Audience audience = null;
+        if (AudiencesList.TryGetValue(clientId, out audience))
+        {
+            return audience;
+        }
+        return null;
+    }
+}
+这个类就像资源服务器的仓库, 做两件事添加新的资源服务器和寻找已知资源服务器.
+如果你看方法"AddAudience" 你会发现实现如下:
+<ul>
+    <li>生成随机32字符的识别码作为资源服务器 client id</li>
+    <li>使用"RNGCryptoServiceProvider"生成256位随机键值, 然后base64编码它,这个键值用来在认证服务器和指定资源服务器中共享</li>
+    <li>添加新生成的资源服务器到内存中"AudiencesList"</li>
+    <li>"FindAudience"方法用来查找一个资源服务器</li>
+    <li>构造函数创建一个固定的资源服务器来演示</li>
+</ul>
+最后我们需要添加一个controller来允许注册资源服务器, 添加Controllers文件夹然后创建AudienceController:
+[RoutePrefix("api/audience")]
+public class AudienceController : ApiController
+{
+    [Route("")]
+    public IHttpActionResult Post(AudienceModel audienceModel)
+    {
+        if (!ModelState.IsValid) {
+            return BadRequest(ModelState);
+        }
+
+        Audience newAudience = AudiencesStore.AddAudience(audienceModel.Name);
+
+        return Ok<Audience>(newAudience);
+
+    }
+}
+注意认证服务器是用来生成client id和对称键值的, 对称键值不要泄露除了资源服务器请求.
+清注意:在真实场景中, 资源服务器注册不会如此简单, 你可能需要使用工作流来审批, 共享键值会通过专门的安全管理门户网站,另外你需要提供资源服务器生成一个新键值的能力当泄漏时.
+<img src="assets/imgs/auth-token10.jpg">
+<h3>1.5:实现CustomOAuthProvider类</h3>
+现在我们需要实现代码来处理JSON Web Token当请求到"http://yourserver/oauth2/token" 如图注意我们为资源服务器设定上一步的client id.
+<img src="assets/imgs/auth-token11.jpg">
+实现它,我们需要添加新的文件夹"Providers" 然后添加新类"CustomOAuthProvider":
+public class CustomOAuthProvider : OAuthAuthorizationServerProvider
+{
+
+    public override Task ValidateClientAuthentication(OAuthValidateClientAuthenticationContext context)
+    {
+        string clientId = string.Empty;
+        string clientSecret = string.Empty;
+        string symmetricKeyAsBase64 = string.Empty;
+
+        if (!context.TryGetBasicCredentials(out clientId, out clientSecret))
+        {
+            context.TryGetFormCredentials(out clientId, out clientSecret);
+        }
+
+        if (context.ClientId == null)
+        {
+            context.SetError("invalid_clientId", "client_Id is not set");
+            return Task.FromResult<object>(null);
+        }
+
+        var audience = AudiencesStore.FindAudience(context.ClientId);
+
+        if (audience == null)
+        {
+            context.SetError("invalid_clientId", string.Format("Invalid client_id '{0}'", context.ClientId));
+            return Task.FromResult<object>(null);
+        }
+
+        context.Validated();
+        return Task.FromResult<object>(null);
+    }
+
+    public override Task GrantResourceOwnerCredentials(OAuthGrantResourceOwnerCredentialsContext context)
+    {
+
+        context.OwinContext.Response.Headers.Add("Access-Control-Allow-Origin", new[] { "*" });
+
+        //Dummy check here, you need to do your DB checks against memebrship system http://bit.ly/SPAAuthCode
+        if (context.UserName != context.Password)
+        {
+            context.SetError("invalid_grant", "The user name or password is incorrect");
+            //return;
+            return Task.FromResult<object>(null);
+        }
+
+        var identity = new ClaimsIdentity("JWT");
+
+        identity.AddClaim(new Claim(ClaimTypes.Name, context.UserName));
+        identity.AddClaim(new Claim("sub", context.UserName));
+        identity.AddClaim(new Claim(ClaimTypes.Role, "Manager"));
+        identity.AddClaim(new Claim(ClaimTypes.Role, "Supervisor"));
+
+        var props = new AuthenticationProperties(new Dictionary<string, string>
+            {
+                {
+                     "audience", (context.ClientId == null) ? string.Empty : context.ClientId
+                }
+            });
+
+        var ticket = new AuthenticationTicket(identity, props);
+        context.Validated(ticket);
+        return Task.FromResult<object>(null);
+    }
+}
+可以看到这个类继承自OAuthAuthorizationServerProvider, 我们重写了两个方法“ValidateClientAuthentication” and “GrantResourceOwnerCredentials”
+<ul>
+    <li>第一个方法ValidateClientAuthentication通过client id来验证资源服务器是否已经注册, 注意这个请求会包含client id但是不包含对称键值, 如果这个资源服务器已经注册过,我们会标记为已存在, 意味着资源服务器检查通过, 代码继续执行下一步来验证资源所有者证书(请求token的用户)</li>
+    <li>第二个方法GrantResourceOwnerCredentials用来验证资源所有者证书,为了简单起见,所有的用户名密码都可以通过.</li>
+    <li>注意我们设定认证类型为JWT, 所以我们转换资源服务器client id为AuthenticationProperties对象属性, 我们会在接下来使用资源服务器client id</li>
+    <li>现在我们使用context.Validated(ticket) 来生成access token, 我们仍然需要实现CustomJwtFormat</li>
+</ul>
+
+<h3>1.6: 实现CustomJwtFormat类</h3>
+这个类是用来生成JWT access token的, 所以我们需要添加新文件夹Formats 然后添加CustomJwtFormat:
+public class CustomJwtFormat : ISecureDataFormat<AuthenticationTicket>
+{
+    private const string AudiencePropertyKey = "audience";
+
+    private readonly string _issuer = string.Empty;
+
+    public CustomJwtFormat(string issuer)
+    {
+        _issuer = issuer;
+    }
+
+    public string Protect(AuthenticationTicket data)
+    {
+        if (data == null)
+        {
+            throw new ArgumentNullException("data");
+        }
+
+        string audienceId = data.Properties.Dictionary.ContainsKey(AudiencePropertyKey) ? data.Properties.Dictionary[AudiencePropertyKey] : null;
+
+        if (string.IsNullOrWhiteSpace(audienceId)) throw new InvalidOperationException("AuthenticationTicket.Properties does not include audience");
+
+        Audience audience = AudiencesStore.FindAudience(audienceId);
+
+        string symmetricKeyAsBase64 = audience.Base64Secret;
+
+        var keyByteArray = TextEncodings.Base64Url.Decode(symmetricKeyAsBase64);
+
+        var signingKey = new HmacSigningCredentials(keyByteArray);
+
+        var issued = data.Properties.IssuedUtc;
+        var expires = data.Properties.ExpiresUtc;
+
+        var token = new JwtSecurityToken(_issuer, audienceId, data.Identity.Claims, issued.Value.UtcDateTime, expires.Value.UtcDateTime, signingKey);
+
+        var handler = new JwtSecurityTokenHandler();
+
+        var jwt = handler.WriteToken(token);
+
+        return jwt;
+    }
+
+    public AuthenticationTicket Unprotect(string protectedText)
+    {
+        throw new NotImplementedException();
+    }
+}
+实现如下:
+<ul>
+    <li>CustomJwtFormat实现接口ISecureDataFormat<AuthenticationTicket>. JWT生成会通过重写Protect方法</li>
+    <li>构造函数接受"Issuer"JWT的发行者(认证服务器),可以是一个URI, 我们的例子中使用固定的URI "http://yourserver"</li>
+    <li>在Protect方法中,我们做这些事情:
+    1.从认证票据属性中读取资源服务器 client id,然后从内存存储中获取资源服务器.
+    2.读取资源服务器的对称键值然后base64解码成字节数组来创建HMAC265签名键值.
+    3.准备JWT的原生数据, 提供发行者, 读者,用户声明, 处理时间,过期时间,签名键值给请求者.
+    </li>
+    <li>最后序列化JSON Web Token成一个字符串然后给请求者</li>
+    <li>请求者从认证服务器会获取到一个签名的access token,其中包含当前资源所有者在某些资源服务器上的身份声明</li>
+</ul>
+所以如果需要从我们的认证服务器请求一个用户名为"SuperUser"的JWT, 需要访问资源服务器"099153c2625149bc8ecb3e85e03f0022", 需要做的是请求HTTP POST到http://yourserver/oauth2/token 如图:
+<img src="assets/imgs/auth-token12.jpg">
+返回值为JSON Web Token:
+eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1bmlxdWVfbmFtZSI6IlN1cGVyVXNlciIsInN1YiI6IlN1cGVyVXNlciIsInJvbGUiOlsiTWFuYWdlciIsIlN1cGVydmlzb3IiXSwiaXNzIjoiaHR0cDovL2p3dGF1dGh6c3J2LmF6dXJld2Vic2l0ZXMubmV0IiwiYXVkIjoiMDk5MTUzYzI2MjUxNDliYzhlY2IzZTg1ZTAzZjAwMjIiLCJleHAiOjE0MTQzODEyODgsIm5iZiI6MTQxNDM3OTQ4OH0.pZffs_TSXjgxRGAPQ6iJql7NKfRjLs1WWSliX5njSYU
+你可以使用在线JWT debugger tool <a href="http://jwt.io/">jwt.io</a>,你可以复制粘贴编码JWT来解码,然后获取内部声明信息, 所以打开工具粘贴JWT你可以看到如图所示,注意所有的声明都在属性例如iss,and, sub,role等等
+需要注意红线代表签名不存在, 这很正常因为这个tool并不知道资源服务器共享的对称键值099153c2625149bc8ecb3e85e03f0022
+如果决定对这个工具分享这个对称键值,粘贴到secret对话框中,你会绿线代表通过
+<img src="assets/imgs/auth-token13.jpg">
+<img src="assets/imgs/auth-token14.jpg">
+现在认证服务器可以提供注册和生成JWT token, 然后我们来添加资源服务器来消费JWT tokens吧
+
+<h2>第二步:添加资源服务器(读者)</h2>
+<h3>2.1创建资源服务器web api项目</h3>
+添加一个新的asp.net web 应用命名为:ResourceServer.Api, 使用Empty和No Authentication
+<h3>2.2安装依赖</h3>
+Install-Package Microsoft.AspNet.WebApi -Version 5.2.2
+Install-Package Microsoft.AspNet.WebApi.Owin -Version 5.2.2
+Install-Package Microsoft.Owin.Host.SystemWeb -Version 3.0.0
+Install-Package Microsoft.Owin.Cors -Version 3.0.0
+Install-Package Microsoft.Owin.Security.Jwt -Version 3.0.0
+Microsoft.Owin.Security.Jwt 用来使用JWT保护资源服务器资源, 它只会验证和反序列化JWT tokens
+<h3>2.3 添加Owin startup类</h3>
+添加Startup类:
+public class Startup
+{
+    public void Configuration(IAppBuilder app)
+    {
+        HttpConfiguration config = new HttpConfiguration();
+
+        config.MapHttpAttributeRoutes();
+
+        ConfigureOAuth(app);
+
+        app.UseCors(Microsoft.Owin.Cors.CorsOptions.AllowAll);
+
+        app.UseWebApi(config);
+
+    }
+
+    public void ConfigureOAuth(IAppBuilder app)
+    {
+        var issuer = "http://jwtauthzsrv.azurewebsites.net";
+        var audience = "099153c2625149bc8ecb3e85e03f0022";
+        var secret = TextEncodings.Base64Url.Decode("IxrAjDoa2FqElO7IhrSrUJELhUckePEPVpaePlS_Xaw");
+
+        // Api controllers with an [Authorize] attribute will be validated with JWT
+        app.UseJwtBearerAuthentication(
+            new JwtBearerAuthenticationOptions
+            {
+                AuthenticationMode = AuthenticationMode.Active,
+                AllowedAudiences = new[] { audience },
+                IssuerSecurityTokenProviders = new IIssuerSecurityTokenProvider[]
+                {
+                    new SymmetricKeyIssuerSecurityTokenProvider(issuer, secret)
+                }
+            });
+
+    }
+}
+这是最重要的一步来配置资源服务器信任认证服务器发行的tokens, 注意我们提供的认证服务器和资源服务里的值, 和注册资源服务器时生成的对称键值秘钥
+提供这些值给JwtBearerAuthentication中间件,这个资源服务器会允许消费从信任认证服务器生成的JWT token.
+注意:存储键值到config文件不要在代码中.
+<h3>2.4: 添加受保护Controller</h3>
+现在我们希望添加一个Controller来保护资源, 这个controller会返回一个认证用户列表,添加一个Controller文件夹和ProtectedController类:
+[Authorize]
+[RoutePrefix("api/protected")]
+public class ProtectedController : ApiController
+{
+    [Route("")]
+    public IEnumerable<object> Get()
+    {
+        var identity = User.Identity as ClaimsIdentity;
+
+        return identity.Claims.Select(c => new
+        {
+            Type = c.Type,
+            Value = c.Value
+        });
+    }
+}
+属性[Authorize]意味着请求中需要包含正确的JWT access token:
+<ul>
+    <li>JWT没有过期</li>
+    <li>JWT由认证服务器生成</li>
+    <li>JWT为资源服务器099153c2625149bc8ecb3e85e03f0022而发行</li>
+</ul>
+
+结论:
+使用JWT是为了分离认证服务器和资源服务器, 而且并不需要统一的machineKey, 这样会降低在每个资源服务器中分享“decryptionKey” and “validationKey” 值得风险
+</pre>
+
+
+</section>
+
+
+    <footer>
+        <div class="row">
+            <div class="col-lg-12">
+                <p>Copyright &copy; Jason.Bai 2016</p>
+            </div>
+        </div>
+    </footer>
+
+        <script type="text/javascript" src="assets/js/lib/jquery.min.js"></script>
+        <script type="text/javascript" src="assets/js/lib/bootstrap.min.js"></script>
+        <!--[if lte IE 9]>
+        <script src="assets/js/lib/jquery.placeholder.min.js"></script>
+        <![endif]-->
+        <script src="assets/js/lib/require.min.js"></script>
+        <script src="assets/js/homepage.js"></script>
+    
+
+  </body>
+
+</html>
