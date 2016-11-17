@@ -231,35 +231,36 @@
                         <h3>Practices of Continuous Integration</h3>
 					<ul>
 						<li>Automate the Build</li>
-                        prepare env, compile，move files，load DB from schema
-                        ability to checkout code and run build command on clean machine
+						<li style="display: none">prepare env, compile，move files，load DB from schema
+							ability to checkout code and run build command on clean machine</li>
+
 						<li>Make Your Build Self-Testing</li>
-                        use test to make sure you are confident everything is ok
+						<li style="display: none">use test to make sure you are confident everything is ok</li>
 						<li>Everyone Commits To the Mainline Every Day</li>
-                        Small Step
+						<li style="display: none">Small Step
                         Less or not branch
-                        Feature Toggle
+                        Feature Toggle</li>
 						<li>Every Commit Should Build the Mainline on an Integration Machine</li>
-                        github vs tfs vs svn
+						<li style="display: none">github vs tfs vs svn</li>
 						<li>Fix Broken Builds Immediately</li>
-                        monitor
-                        check logs and location it quickly 10-20min
+						<li style="display: none">monitor
+                        check logs and location it quickly 10-20min</li>
 						<li>Keep the Build Fast</li>
-                        less than 10min
+						<li style="display: none">less than 10min
                         step 1 build, unit test, functional test
-                        step 2 build, may be daily build Performance Testing or End-to-End test.if step 2 build failed，need not to fix is as soon as possible, means  step 1 build need to add a new unit test or something
+                        step 2 build, may be daily build Performance Testing or End-to-End test.if step 2 build failed，need not to fix is as soon as possible, means  step 1 build need to add a new unit test or something</li>
 						<li>Test in a Clone of the Production Environment</li>
-                        如果你不在生产环境做测试，所有环境差异都是风险，可能最终造成测试环境中运行正常的软件在生产环境中无法正常运行。
+						<li style="display: none">如果你不在生产环境做测试，所有环境差异都是风险，可能最终造成测试环境中运行正常的软件在生产环境中无法正常运行。</li>
 						<li>Make it Easy for Anyone to Get the Latest Executable</li>
-                        把每次迭代中最后一个 build 放进去通常是明智的决定
+						<li style="display: none">把每次迭代中最后一个 build 放进去通常是明智的决定</li>
 						<li>Everyone can see what's happening</li>
-                        持续集成中最重要的是沟通。你需要保证每个人都能轻易看到系统的状态和最新的修改。
-                        创建自己团队的build传感器
+						<li style="display: none">持续集成中最重要的是沟通。你需要保证每个人都能轻易看到系统的状态和最新的修改。
+                        创建自己团队的build传感器</li>
 						<li>Automate Deployment</li>
-                        你必须有几个帮你将应用轻松部署到各个环境中的脚本
+						<li style="display: none">你必须有几个帮你将应用轻松部署到各个环境中的脚本
                         你还需要自动化回滚
                         或者蓝绿发布,parallel change
-                        数据库的改动很麻烦，因为你不能仅仅修改 schema，你还要保证数据本身也被顺利迁移
+                        数据库的改动很麻烦，因为你不能仅仅修改 schema，你还要保证数据本身也被顺利迁移</li>
 					</ul>
 					</section>
 				</section>
